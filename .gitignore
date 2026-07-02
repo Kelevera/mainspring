@@ -1,0 +1,14 @@
+# sellable builds — never commit (docs/ holds the public demo build only)
+dist/
+dist-demo/
+*.zip
+
+# secrets — unlock codes are sold, not shipped
+unlock_codes.txt
+
+# tooling
+node_modules/
+__pycache__/
+package.json
+package-lock.json
+.DS_Store
