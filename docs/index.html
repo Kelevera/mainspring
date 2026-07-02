@@ -1,0 +1,1799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MAINSPRING (free demo) - a clockwork engine-building roguelike</title>
+<meta name="description" content="Place gears, mind your loops: meshed gears counter-rotate, and a tight loop jams the whole train. An engine-building roguelike about building one beautiful machine.">
+<meta property="og:title" content="MAINSPRING">
+<meta property="og:description" content="A clockwork engine-building roguelike. Meshed gears counter-rotate - close a tight loop and everything jams.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='6' fill='%23e9c34a'/%3E%3Cg fill='%23e9c34a'%3E%3Crect x='11' y='2' width='2' height='4'/%3E%3Crect x='11' y='18' width='2' height='4'/%3E%3Crect x='2' y='11' width='4' height='2'/%3E%3Crect x='18' y='11' width='4' height='2'/%3E%3C/g%3E%3Ccircle cx='12' cy='12' r='2.4' fill='%231d1710'/%3E%3C/svg%3E">
+<style>
+/* MAINSPRING — workshop theme */
+* { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  color: #efe6d0;
+  background: radial-gradient(1200px 800px at 50% 30%, #262019 0%, #17130e 55%, #0d0b08 100%);
+}
+#app { position: relative; width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; }
+
+h1, h2, h3, .serif { font-family: Georgia, "Times New Roman", serif; letter-spacing: 0.04em; }
+.gold { color: #e9c34a; } .dim { color: #a2947a; } .red { color: #ff6b57; } .green { color: #8fd18a; }
+.small { font-size: 12px; }
+
+button {
+  font-family: Georgia, serif; font-size: 15px; letter-spacing: 0.06em;
+  color: #1d1710; background: linear-gradient(180deg, #e9c34a, #b98d24);
+  border: 1px solid #6e5314; border-radius: 6px; padding: 8px 18px; cursor: pointer;
+  box-shadow: 0 2px 0 #6e5314, inset 0 1px 0 rgba(255,255,255,0.35);
+}
+button:hover { filter: brightness(1.12); }
+button:active { transform: translateY(1px); box-shadow: 0 1px 0 #6e5314; }
+button:disabled { filter: grayscale(0.8) brightness(0.7); cursor: not-allowed; }
+button.ghost {
+  background: rgba(233,195,74,0.08); color: #d8c9a4; border: 1px solid #5a4a2c; box-shadow: none;
+}
+button.ghost:hover { background: rgba(233,195,74,0.16); }
+button.big { font-size: 19px; padding: 12px 30px; }
+button.danger { background: linear-gradient(180deg, #d96a4e, #a83f27); border-color: #6e2314; color: #fff; }
+
+/* ---------- HUD ---------- */
+#hud {
+  width: 100%; max-width: 1180px; display: flex; align-items: center; gap: 14px;
+  padding: 10px 16px; flex: 0 0 auto;
+}
+#hud .logo { font-size: 21px; color: #e9c34a; text-shadow: 0 0 14px rgba(233,195,74,0.35); white-space: nowrap; }
+.pill {
+  background: #241f16; border: 1px solid #4a3d24; border-radius: 20px;
+  padding: 5px 14px; font-size: 14px; white-space: nowrap;
+}
+.pill b { color: #e9c34a; font-size: 16px; }
+#quotabarwrap { flex: 1 1 auto; height: 22px; background: #1a1610; border: 1px solid #4a3d24; border-radius: 12px; overflow: hidden; position: relative; min-width: 120px; }
+#quotabar { height: 100%; width: 0%; background: linear-gradient(90deg, #7a5c14, #e9c34a); transition: width 0.25s; }
+#quotatxt { position: absolute; inset: 0; text-align: center; font-size: 13px; line-height: 21px; color: #fff; text-shadow: 0 1px 2px #000; }
+#bossbanner {
+  display: none; padding: 5px 14px; border-radius: 20px; font-size: 13px;
+  background: #3a1610; border: 1px solid #a83f27; color: #ffb4a4;
+}
+.iconbtn { padding: 6px 11px; font-size: 15px; }
+
+/* ---------- board ---------- */
+#boardwrap { position: relative; flex: 1 1 auto; width: 100%; max-width: 1180px; min-height: 0; }
+#board { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; }
+#forecast {
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+  background: rgba(20,16,10,0.85); border: 1px solid #4a3d24; border-radius: 8px;
+  padding: 5px 16px; font-size: 14px; pointer-events: none;
+}
+#jamwarn {
+  position: absolute; top: 44px; left: 50%; transform: translateX(-50%);
+  background: rgba(58,16,10,0.92); border: 1px solid #a83f27; color: #ffb4a4;
+  border-radius: 8px; padding: 4px 14px; font-size: 13px; display: none; pointer-events: none;
+}
+
+/* ---------- bottom dock ---------- */
+#dock {
+  width: 100%; max-width: 1180px; flex: 0 0 auto; padding: 8px 16px 14px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+#shoprow { display: none; gap: 10px; align-items: stretch; }
+#shopoffers { display: flex; gap: 10px; flex: 1; flex-wrap: wrap; }
+.offer {
+  background: #241f16; border: 1px solid #4a3d24; border-radius: 10px;
+  padding: 8px 10px; width: 148px; cursor: pointer; position: relative; text-align: center;
+}
+.offer:hover { border-color: #e9c34a; box-shadow: 0 0 12px rgba(233,195,74,0.25); }
+.offer.sold { opacity: 0.35; pointer-events: none; }
+.offer .nm { font-size: 13px; margin: 4px 0 2px; color: #efe6d0; font-family: Georgia, serif; }
+.offer .cost { font-size: 14px; color: #e9c34a; }
+.offer canvas { display: block; margin: 0 auto; }
+.offer.r-rare { border-color: #5d7d91; } .offer.r-rare:hover { border-color: #9ab6c9; box-shadow: 0 0 12px rgba(154,182,201,0.3); }
+.offer.r-epic { border-color: #b97e2e; background: linear-gradient(180deg, #2c2313, #241f16); }
+.offer.r-epic:hover { border-color: #ffb757; box-shadow: 0 0 14px rgba(255,183,87,0.4); }
+.offer.k-charm { border-style: dashed; }
+#shopside { display: flex; flex-direction: column; gap: 8px; justify-content: center; }
+
+#trayrow { display: flex; gap: 10px; align-items: center; min-height: 74px; }
+#tray { display: flex; gap: 8px; flex: 1; flex-wrap: wrap; align-items: center; min-height: 68px;
+  background: rgba(30,24,15,0.6); border: 1px dashed #4a3d24; border-radius: 12px; padding: 6px 10px; }
+#tray .hint { color: #6f6250; font-size: 13px; }
+.chip {
+  width: 58px; height: 58px; border-radius: 50%; cursor: grab; position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.chip:hover { filter: brightness(1.15); }
+.chip canvas { pointer-events: none; }
+#sellzone {
+  display: none; align-items: center; justify-content: center; width: 120px; border-radius: 12px;
+  border: 2px dashed #a83f27; color: #ff9c86; font-size: 14px; text-align: center;
+}
+#sellzone.active { display: flex; }
+#runbtn { min-width: 190px; }
+#charmbar { display: flex; gap: 6px; }
+.charm {
+  width: 40px; height: 40px; border-radius: 8px; background: #241f16;
+  border: 1px solid #6b5a2e; display: flex; align-items: center; justify-content: center;
+  font-size: 20px; cursor: default;
+}
+
+/* ---------- tooltip ---------- */
+#tooltip {
+  position: fixed; display: none; z-index: 50; max-width: 260px; pointer-events: none;
+  background: #100d08; border: 1px solid #6b5a2e; border-radius: 8px; padding: 10px 12px;
+  font-size: 13px; line-height: 1.45; box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+}
+#tooltip .tt-name { font-family: Georgia, serif; font-size: 15px; }
+#tooltip .tt-rar { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; }
+#tooltip .tt-sub { color: #a2947a; margin-top: 5px; font-size: 12px; }
+
+/* ---------- overlay screens ---------- */
+.screen {
+  position: absolute; inset: 0; z-index: 40; display: none;
+  background: rgba(10,8,5,0.88); backdrop-filter: blur(3px);
+  align-items: center; justify-content: center;
+}
+.screen.on { display: flex; }
+.panel {
+  background: linear-gradient(180deg, #262019, #1a1510); border: 1px solid #6b5a2e;
+  border-radius: 14px; padding: 28px 34px; max-width: 720px; width: calc(100% - 40px);
+  max-height: calc(100vh - 60px); overflow-y: auto; text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+}
+.panel h1 { font-size: 44px; color: #e9c34a; text-shadow: 0 0 24px rgba(233,195,74,0.4); }
+.panel h2 { font-size: 26px; color: #e9c34a; margin-bottom: 10px; }
+.panel p { margin: 10px 0; line-height: 1.55; color: #d8c9a4; }
+.panel .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 18px; }
+.tag { font-size: 12px; letter-spacing: 0.25em; color: #a2947a; text-transform: uppercase; }
+.statgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; margin: 14px auto; max-width: 380px; text-align: left; font-size: 14px; }
+.statgrid b { color: #e9c34a; float: right; }
+.howgrid { text-align: left; font-size: 14px; line-height: 1.5; }
+.howgrid h3 { color: #e9c34a; margin: 14px 0 4px; }
+.kbd { background: #33291a; border: 1px solid #6b5a2e; border-radius: 4px; padding: 1px 7px; font-size: 12px; }
+
+/* compendium */
+#compgrid { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 12px; }
+.compcell { width: 74px; background: #1a1510; border: 1px solid #4a3d24; border-radius: 8px; padding: 6px 2px; font-size: 10px; text-align: center; }
+.compcell.locked { opacity: 0.35; }
+.compcell canvas { display: block; margin: 0 auto 3px; }
+
+/* settings */
+.setrow { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 12px 0; text-align: left; }
+input[type=range] { width: 180px; accent-color: #e9c34a; }
+input[type=text] {
+  background: #17120c; color: #efe6d0; border: 1px solid #6b5a2e; border-radius: 6px;
+  padding: 8px 10px; font-size: 14px; width: 200px;
+}
+input[type=checkbox] { accent-color: #e9c34a; transform: scale(1.3); }
+
+/* payout breakdown */
+#payout { position: absolute; z-index: 30; left: 50%; top: 42%; transform: translate(-50%,-50%);
+  display: none; background: rgba(16,13,8,0.95); border: 1px solid #e9c34a; border-radius: 14px;
+  padding: 22px 34px; text-align: center; box-shadow: 0 0 40px rgba(233,195,74,0.25); }
+#payout h2 { font-size: 30px; }
+#payout.fail { border-color: #a83f27; box-shadow: 0 0 40px rgba(168,63,39,0.3); }
+
+.coach {
+  position: absolute; z-index: 35; background: #2c2313; border: 1px solid #e9c34a; color: #efe6d0;
+  border-radius: 10px; padding: 10px 14px; font-size: 13px; max-width: 240px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.6); animation: coachin 0.4s ease;
+}
+.coach:after { content: ""; position: absolute; bottom: -7px; left: 24px; width: 12px; height: 12px;
+  background: #2c2313; border-right: 1px solid #e9c34a; border-bottom: 1px solid #e9c34a; transform: rotate(45deg); }
+@keyframes coachin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
+
+.demobadge { position: fixed; top: 10px; right: 12px; z-index: 60; background: #3a2c10; border: 1px solid #e9c34a;
+  color: #e9c34a; font-size: 11px; letter-spacing: 0.2em; padding: 3px 10px; border-radius: 12px; }
+
+@media (max-width: 860px) {
+  #hud { flex-wrap: wrap; gap: 8px; }
+  .offer { width: 118px; }
+}
+
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ===== data.js ===== */
+/* MAINSPRING — content data (gears, charms, contracts, boss modifiers)
+   Pure data + effect functions. No DOM. Node-compatible for tests. */
+'use strict';
+
+const RARITY = { common: { name: 'Common', col: '#c9a227' }, rare: { name: 'Rare', col: '#9ab6c9' }, epic: { name: 'Epic', col: '#ffb757' } };
+
+/* Effect context `c` fields:
+   tick, ticks        — current tick (1-based), total ticks this shift
+   dir                — 1 = clockwise, -1 = counter-clockwise, 0 = free (wild)
+   nbs                — occupied neighbor list: {key, id, def, spinning, dir}
+   emptyAdj           — number of empty adjacent cells (on board)
+   edge               — true if cell is on the board rim
+   gold               — current gold
+   done               — contracts completed this run
+   spinningCount      — total spinning gears on board (incl. drive)
+   bestNbBase         — highest neighbor base output this tick (echo pass)
+*/
+
+const GEARS = {
+  drive: { name: 'Mainspring Drive', rarity: 'common', cost: 0, fixed: true,
+    text: 'The heart of the machine. +1 energy per tick. Everything must connect to it.',
+    calc: c => 1 },
+
+  /* ---------- Commons ---------- */
+  brass: { name: 'Brass Dynamo', rarity: 'common', cost: 4,
+    text: '+2 energy per tick.', calc: c => 2 },
+  copper: { name: 'Copper Dynamo', rarity: 'common', cost: 5,
+    text: '+3 energy if spinning clockwise, +1 otherwise.',
+    calc: c => (c.dir === 1 ? 3 : 1) },
+  tin: { name: 'Tin Dynamo', rarity: 'common', cost: 5,
+    text: '+3 energy if spinning counter-clockwise, +1 otherwise.',
+    calc: c => (c.dir === -1 ? 3 : 1) },
+  crowd: { name: 'Crowd Cog', rarity: 'common', cost: 5,
+    text: '+1 energy, plus +1 per spinning neighbor.',
+    calc: c => 1 + c.nbs.filter(n => n.spinning).length },
+  hermit: { name: 'Hermit Wheel', rarity: 'common', cost: 5,
+    text: '+5 energy if it has at most 1 neighbor, else +1.',
+    calc: c => (c.nbs.length <= 1 ? 5 : 1) },
+  rim: { name: 'Rim Runner', rarity: 'common', cost: 5,
+    text: '+4 energy on the board rim, +1 elsewhere.',
+    calc: c => (c.edge ? 4 : 1) },
+  escapement: { name: 'Escapement', rarity: 'common', cost: 6,
+    text: 'Every 3rd tick: +8 energy.', calc: c => (c.tick % 3 === 0 ? 8 : 0) },
+  flywheel: { name: 'Flywheel', rarity: 'common', cost: 6,
+    text: 'Builds momentum: + energy equal to half the tick number.',
+    calc: c => Math.floor(c.tick / 2) },
+  pendulum: { name: 'Pendulum', rarity: 'common', cost: 5,
+    text: 'Odd ticks: +4 energy. Even ticks: nothing.',
+    calc: c => (c.tick % 2 === 1 ? 4 : 0) },
+  mint: { name: 'Mint Wheel', rarity: 'common', cost: 6,
+    text: '+1 energy per tick. Every 4th tick: +1 gold.',
+    calc: c => 1, gcalc: c => (c.tick % 4 === 0 ? 1 : 0) },
+
+  /* ---------- Rares ---------- */
+  governor: { name: 'Governor', rarity: 'rare', cost: 9,
+    text: 'Produces nothing. Adjacent spinning gears: +2 energy each.',
+    calc: c => 0, buff: 2 },
+  amp: { name: 'Amplifier Drum', rarity: 'rare', cost: 12,
+    text: 'Produces nothing. Adjacent gears\' energy x1.5.',
+    calc: c => 0, mult: 1.5 },
+  ratchet: { name: 'Ratchet', rarity: 'rare', cost: 8,
+    text: '+8 energy clockwise. Nothing counter-clockwise.',
+    calc: c => (c.dir === 1 ? 8 : 0) },
+  counterratchet: { name: 'Counter-Ratchet', rarity: 'rare', cost: 8,
+    text: '+8 energy counter-clockwise. Nothing clockwise.',
+    calc: c => (c.dir === -1 ? 8 : 0) },
+  bushing: { name: 'Greased Bushing', rarity: 'rare', cost: 10, wild: true,
+    text: '+1 energy. Meshes loosely: never jams, and neighbors may spin either way. Breaks odd loops.',
+    calc: c => 1 },
+  gilded: { name: 'Gilded Gear', rarity: 'rare', cost: 10,
+    text: '+1 energy per 12 gold you hold.', calc: c => Math.floor(c.gold / 12) },
+  echo: { name: 'Echo Wheel', rarity: 'rare', cost: 11,
+    text: 'Copies 60% of the best adjacent gear\'s base output.',
+    calc: c => Math.floor(c.bestNbBase * 0.6), echo: true },
+  whistle: { name: 'Factory Whistle', rarity: 'rare', cost: 9,
+    text: 'On the final tick: +22 energy.',
+    calc: c => (c.tick === c.ticks ? 22 : 0) },
+  twin: { name: 'Twin Gear', rarity: 'rare', cost: 8,
+    text: '+3 energy. +3 more if adjacent to another Twin Gear.',
+    calc: c => 3 + (c.nbs.some(n => n.id === 'twin') ? 3 : 0) },
+  clockspring: { name: 'Clock Spring', rarity: 'rare', cost: 9,
+    text: '+1 energy per contract you have completed this run.',
+    calc: c => c.done },
+  boiler: { name: 'Boiler', rarity: 'rare', cost: 10,
+    text: '+7 energy, but adjacent gears -1 energy.',
+    calc: c => 7, buff: -1 },
+
+  /* ---------- Epics ---------- */
+  grandgov: { name: 'Grand Governor', rarity: 'epic', cost: 16,
+    text: 'Produces nothing. ALL spinning gears: +1 energy.',
+    calc: c => 0, globalBuff: 1 },
+  prime: { name: 'Dynamo Prime', rarity: 'epic', cost: 15,
+    text: '+6 energy. +3 more if spinning clockwise.',
+    calc: c => 6 + (c.dir === 1 ? 3 : 0) },
+  perpetuum: { name: 'Perpetuum', rarity: 'epic', cost: 18,
+    text: '+ energy equal to the tick number. Relentless.',
+    calc: c => c.tick },
+  midas: { name: 'Midas Drum', rarity: 'epic', cost: 16,
+    text: '+2 energy per tick. Every 5th tick: +3 gold.',
+    calc: c => 2, gcalc: c => (c.tick % 5 === 0 ? 3 : 0) },
+  astrolabe: { name: 'Astrolabe', rarity: 'epic', cost: 14,
+    text: '+9 energy with exactly 2 spinning neighbors, else +2.',
+    calc: c => (c.nbs.filter(n => n.spinning).length === 2 ? 9 : 2) },
+  carillon: { name: 'Carillon', rarity: 'epic', cost: 17,
+    text: 'Every 5th tick: +2 energy per spinning gear on the board.',
+    calc: c => (c.tick % 5 === 0 ? 2 * c.spinningCount : 0) },
+  overdrive: { name: 'Overdrive Core', rarity: 'epic', cost: 20,
+    text: 'Produces nothing. Adjacent gears\' energy x2.',
+    calc: c => 0, mult: 2 },
+};
+
+/* Charms — global passive artifacts. Max 5 per run. */
+const CHARMS = {
+  oilcan: { name: 'Oil Can', cost: 12, text: '+1 tick every shift.' },
+  ledger: { name: 'Ledger', cost: 8, text: '+3 gold base pay per contract.' },
+  unioncard: { name: 'Union Card', cost: 10, text: 'Gears in the shop cost 20% less.' },
+  springwinder: { name: 'Spring Winder', cost: 9, text: 'The Mainspring Drive produces +2 energy.' },
+  overtimepermit: { name: 'Overtime Permit', cost: 11, text: 'Once per run: retry a failed shift.' },
+  insurance: { name: 'Insurance Bond', cost: 9, text: 'Interest cap raised to 10 gold (from 5).' },
+  luckycoin: { name: 'Lucky Coin', cost: 7, text: 'Shop rerolls always cost 1 gold.' },
+  foreman: { name: 'Foreman\'s Whistle', cost: 13, text: 'Start each shift with +5 energy per contract completed.' },
+};
+
+/* Boss modifiers — applied on contracts 3 and 6 (seeded pick). */
+const BOSS_MODS = {
+  inspection: { name: 'Union Inspection', text: 'At most 10 gears may be installed.', maxGears: 10 },
+  coldstart: { name: 'Cold Morning', text: 'The first 2 ticks produce nothing.', deadTicks: 2 },
+  powercut: { name: 'Power Ration', text: 'This shift has 1 fewer tick.', tickPenalty: 1 },
+  stickyvalves: { name: 'Sticky Valves', text: 'Every 4th tick produces nothing.', stickyEvery: 4 },
+  heavyload: { name: 'Heavy Load', text: 'Multipliers are disabled.', noMult: true },
+  offaxis: { name: 'Warped Chassis', text: 'Gears on the board rim produce nothing.', rimDead: true },
+};
+
+/* Contract quotas. Contracts 3 & 6 are bosses; 8 is the Grand Commission. */
+const QUOTAS = [25, 45, 70, 105, 155, 225, 320, 450];
+const BOSS_AT = [3, 6];
+const FINAL_CONTRACT = 8;
+const ENDLESS_GROWTH = 1.45;
+
+const ECON = {
+  startGold: 4,
+  basePay: 9,
+  surplusDiv: 3, surplusCap: 12,
+  interestDiv: 10, interestCap: 5, interestCapInsured: 10,
+  rerollBase: 2,
+  ticksBase: 10,
+  sellRatio: 0.5,
+  expandCost: { 2: 10, 3: 22 },
+  maxCharms: 5,
+  shopGears: 4,
+};
+
+/* Starting tray. Drive is auto-placed at the center. */
+const START_TRAY = ['brass', 'brass', 'copper'];
+
+/* Rarity weights by contract number. */
+function rarityWeights(contract) {
+  if (contract >= 6) return { common: 0.40, rare: 0.42, epic: 0.18 };
+  if (contract >= 4) return { common: 0.52, rare: 0.36, epic: 0.12 };
+  if (contract >= 2) return { common: 0.68, rare: 0.28, epic: 0.04 };
+  return { common: 0.85, rare: 0.15, epic: 0.0 };
+}
+
+/* Demo build: which gears/charms are available (epics + some rares held back). */
+const DEMO_GEARS = ['brass', 'copper', 'tin', 'crowd', 'hermit', 'rim', 'escapement', 'flywheel', 'pendulum', 'mint', 'governor', 'ratchet', 'bushing'];
+const DEMO_CHARMS = ['ledger', 'luckycoin', 'springwinder'];
+const DEMO_LAST_CONTRACT = 3;
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { RARITY, GEARS, CHARMS, BOSS_MODS, QUOTAS, BOSS_AT, FINAL_CONTRACT, ENDLESS_GROWTH, ECON, START_TRAY, rarityWeights, DEMO_GEARS, DEMO_CHARMS, DEMO_LAST_CONTRACT };
+}
+
+
+/* ===== engine.js ===== */
+/* MAINSPRING — core engine. Pure logic, no DOM. Node-compatible for tests.
+   Depends on data.js globals (or require in Node). */
+'use strict';
+
+var MSDATA = (typeof module !== 'undefined' && module.exports) ? require('./data.js')
+  : { RARITY, GEARS, CHARMS, BOSS_MODS, QUOTAS, BOSS_AT, FINAL_CONTRACT, ENDLESS_GROWTH, ECON, START_TRAY, rarityWeights, DEMO_GEARS, DEMO_CHARMS, DEMO_LAST_CONTRACT };
+
+const Engine = (() => {
+  const D = MSDATA;
+
+  /* ---------- RNG (deterministic, seedable) ---------- */
+  function hashStr(s) {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  /* advance state's rng; returns float [0,1) */
+  function rand(st) {
+    st.rngN = (st.rngN + 1) | 0;
+    return mulberry32(st.rngSeed + st.rngN * 7919)();
+  }
+  function randInt(st, n) { return Math.floor(rand(st) * n); }
+  function pick(st, arr) { return arr[randInt(st, arr.length)]; }
+
+  /* ---------- Hex board (axial, pointy-top) ---------- */
+  const DIRS = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
+  const K = (q, r) => q + ',' + r;
+  const parseK = k => k.split(',').map(Number);
+  function hexDist(q, r) { return Math.max(Math.abs(q), Math.abs(r), Math.abs(q + r)); }
+  function inBoard(q, r, R) { return hexDist(q, r) <= R; }
+  function isEdge(q, r, R) { return hexDist(q, r) === R; }
+  function boardCells(R) {
+    const out = [];
+    for (let q = -R; q <= R; q++) for (let r = -R; r <= R; r++) if (inBoard(q, r, R)) out.push(K(q, r));
+    return out;
+  }
+  function neighborKeys(k, R) {
+    const [q, r] = parseK(k);
+    const out = [];
+    for (const [dq, dr] of DIRS) { const nq = q + dq, nr = r + dr; if (inBoard(nq, nr, R)) out.push(K(nq, nr)); }
+    return out;
+  }
+  function sortedKeys(obj) { return Object.keys(obj).sort(); }
+
+  /* ---------- Run state ---------- */
+  function newRun(seedStr, mode, demo) {
+    const st = {
+      v: 1, seedStr, mode: mode || 'standard', demo: !!demo,
+      rngSeed: hashStr(seedStr), rngN: 0,
+      contract: 1, done: 0, gold: D.ECON.startGold, boardR: 1,
+      gears: {}, tray: [], charms: [], uid: 1,
+      shop: null, phase: 'build',
+      overtimeUsed: false, endless: false,
+      lastShift: null, canOvertime: false,
+      stats: { totalEnergy: 0, peakShift: 0, gearsBought: 0, jamsHit: 0, rerolls: 0, goldEarned: 0, shifts: 0 },
+    };
+    st.gears[K(0, 0)] = { id: 'drive', uid: 0 };
+    for (const id of D.START_TRAY) st.tray.push({ id, uid: st.uid++ });
+    return st;
+  }
+
+  function quota(st) {
+    const c = st.contract;
+    if (c <= D.FINAL_CONTRACT) return D.QUOTAS[c - 1];
+    const q = D.QUOTAS[D.FINAL_CONTRACT - 1] * Math.pow(D.ENDLESS_GROWTH, c - D.FINAL_CONTRACT);
+    return Math.round(q / 5) * 5;
+  }
+  function isBoss(st) {
+    return D.BOSS_AT.includes(st.contract) || (st.contract > D.FINAL_CONTRACT && st.contract % 3 === 0);
+  }
+  function bossMod(st) {
+    if (!isBoss(st)) return null;
+    const keys = Object.keys(D.BOSS_MODS).sort();
+    const r = mulberry32(hashStr(st.seedStr + '#boss' + st.contract))();
+    return keys[Math.floor(r * keys.length)];
+  }
+  function ticksFor(st) {
+    let t = D.ECON.ticksBase;
+    if (st.charms.includes('oilcan')) t += 1;
+    const bm = bossMod(st);
+    if (bm && D.BOSS_MODS[bm].tickPenalty) t -= D.BOSS_MODS[bm].tickPenalty;
+    return t;
+  }
+
+  /* ---------- Spin solver ----------
+     Meshed gears must counter-rotate. Wild gears ("bushing") mesh loosely:
+     they impose no parity constraint and never jam.
+     Returns { connected:Set, spinning:Set, jammed:Set, dir:{key:1|-1|0} } */
+  function computeSpin(st) {
+    const R = st.boardR, G = st.gears;
+    const drive = K(0, 0);
+    const connected = new Set();
+    if (G[drive]) {
+      const q = [drive]; connected.add(drive);
+      while (q.length) {
+        const k = q.shift();
+        for (const nk of neighborKeys(k, R)) if (G[nk] && !connected.has(nk)) { connected.add(nk); q.push(nk); }
+      }
+    }
+    const isWild = k => !!(D.GEARS[G[k].id].wild);
+    const dir = {}, jammed = new Set();
+    /* Parity components over connected non-wild gears (edges: both non-wild). */
+    const seen = new Set();
+    const solids = [...connected].filter(k => !isWild(k)).sort();
+    for (const root0 of solids) {
+      if (seen.has(root0)) continue;
+      /* collect component */
+      const comp = [];
+      const q = [root0]; seen.add(root0);
+      while (q.length) {
+        const k = q.shift(); comp.push(k);
+        for (const nk of neighborKeys(k, R)) {
+          if (G[nk] && connected.has(nk) && !isWild(nk) && !seen.has(nk)) { seen.add(nk); q.push(nk); }
+        }
+      }
+      /* anchor: drive if present, else smallest key */
+      const anchor = comp.includes(drive) ? drive : comp.slice().sort()[0];
+      dir[anchor] = 1;
+      let ok = true;
+      const bq = [anchor]; const col = { [anchor]: 1 };
+      while (bq.length) {
+        const k = bq.shift();
+        for (const nk of neighborKeys(k, R)) {
+          if (!G[nk] || !connected.has(nk) || isWild(nk)) continue;
+          if (col[nk] === undefined) { col[nk] = -col[k]; dir[nk] = col[nk]; bq.push(nk); }
+          else if (col[nk] === col[k]) ok = false;
+        }
+      }
+      if (!ok) for (const k of comp) { jammed.add(k); dir[k] = 0; }
+    }
+    /* spinning: non-wild connected & not jammed; wilds spin (dir 0) if any
+       neighbor spins — propagate through wild chains. */
+    const spinning = new Set(solids.filter(k => !jammed.has(k)));
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const k of connected) {
+        if (!isWild(k) || spinning.has(k)) continue;
+        if (neighborKeys(k, R).some(nk => spinning.has(nk))) { spinning.add(k); dir[k] = 0; grew = true; }
+      }
+    }
+    return { connected, spinning, jammed, dir };
+  }
+
+  /* ---------- Shift simulation (fully deterministic) ---------- */
+  function simulateShift(st) {
+    const R = st.boardR, G = st.gears;
+    const spin = computeSpin(st);
+    const bmKey = bossMod(st);
+    const bm = bmKey ? D.BOSS_MODS[bmKey] : {};
+    const T = ticksFor(st);
+    const keys = sortedKeys(G);
+    const spinKeys = keys.filter(k => spin.spinning.has(k));
+    const nbCache = {};
+    for (const k of keys) nbCache[k] = neighborKeys(k, R).filter(nk => G[nk]);
+
+    let energy = 0, goldEarned = 0;
+    if (st.charms.includes('foreman')) energy += 5 * st.done;
+    const startEnergy = energy;
+    const log = [];
+    const perGear = {};
+    const globalBuff = spinKeys.reduce((s, k) => s + (D.GEARS[G[k].id].globalBuff || 0), 0);
+
+    for (let tick = 1; tick <= T; tick++) {
+      const dead = (bm.deadTicks && tick <= bm.deadTicks) || (bm.stickyEvery && tick % bm.stickyEvery === 0);
+      const items = [];
+      if (!dead) {
+        const ctxFor = (k, extra) => {
+          const [q, r] = parseK(k);
+          return Object.assign({
+            tick, ticks: T, dir: spin.dir[k] || 0,
+            nbs: nbCache[k].map(nk => ({ key: nk, id: G[nk].id, def: D.GEARS[G[nk].id], spinning: spin.spinning.has(nk), dir: spin.dir[nk] || 0 })),
+            emptyAdj: neighborKeys(k, R).length - nbCache[k].length,
+            edge: isEdge(q, r, R), gold: st.gold, done: st.done,
+            spinningCount: spinKeys.length, bestNbBase: 0,
+          }, extra || {});
+        };
+        /* pass A: base output (non-echo) */
+        const base = {};
+        for (const k of spinKeys) {
+          const def = D.GEARS[G[k].id];
+          if (def.echo) continue;
+          let b = def.calc(ctxFor(k));
+          if (G[k].id === 'drive' && st.charms.includes('springwinder')) b += 2;
+          base[k] = b;
+        }
+        /* pass B: echo gears copy best neighbor base */
+        for (const k of spinKeys) {
+          const def = D.GEARS[G[k].id];
+          if (!def.echo) continue;
+          const best = Math.max(0, ...nbCache[k].filter(nk => base[nk] !== undefined).map(nk => base[nk]));
+          base[k] = def.calc(ctxFor(k, { bestNbBase: best }));
+        }
+        /* pass C: adjacency + global buffs */
+        const val = {};
+        for (const k of spinKeys) {
+          let v = base[k] || 0;
+          for (const nk of nbCache[k]) {
+            const nd = D.GEARS[G[nk].id];
+            if (nd.buff && spin.spinning.has(nk)) v += nd.buff;
+          }
+          v += globalBuff - (D.GEARS[G[k].id].globalBuff || 0);
+          val[k] = Math.max(0, v);
+        }
+        /* pass D: multipliers */
+        for (const k of spinKeys) {
+          if (bm.noMult) break;
+          let m = 1;
+          for (const nk of nbCache[k]) {
+            const nd = D.GEARS[G[nk].id];
+            if (nd.mult && spin.spinning.has(nk)) m *= nd.mult;
+          }
+          if (m !== 1) val[k] = Math.floor(val[k] * m);
+        }
+        /* rim-dead boss mod */
+        for (const k of spinKeys) {
+          const [q, r] = parseK(k);
+          if (bm.rimDead && isEdge(q, r, R)) val[k] = 0;
+        }
+        /* gold + collect */
+        for (const k of spinKeys) {
+          const def = D.GEARS[G[k].id];
+          const g = def.gcalc ? def.gcalc(ctxFor(k)) : 0;
+          const e = val[k] || 0;
+          if (e > 0 || g > 0) {
+            items.push({ k, e, g });
+            energy += e; goldEarned += g;
+            perGear[k] = (perGear[k] || 0) + e;
+          }
+        }
+      }
+      log.push({ t: tick, dead: !!dead, items, energy, gold: goldEarned });
+    }
+    return { energy, goldEarned, ticks: T, log, startEnergy, perGear, jammedCount: spin.jammed.size, bossMod: bmKey };
+  }
+
+  /* ---------- Shift resolution ---------- */
+  function pay(st, surplus) {
+    let p = D.ECON.basePay;
+    if (st.charms.includes('ledger')) p += 3;
+    p += Math.min(D.ECON.surplusCap, Math.floor(surplus / D.ECON.surplusDiv));
+    const cap = st.charms.includes('insurance') ? D.ECON.interestCapInsured : D.ECON.interestCap;
+    const interest = Math.min(cap, Math.floor(st.gold / D.ECON.interestDiv));
+    return { base: p, interest, total: p + interest };
+  }
+
+  /* Runs the shift & applies the outcome. Returns a result object for the UI. */
+  function runShift(st) {
+    const bmKey = bossMod(st);
+    if (bmKey && D.BOSS_MODS[bmKey].maxGears && Object.keys(st.gears).length > D.BOSS_MODS[bmKey].maxGears)
+      return { err: 'maxGears', limit: D.BOSS_MODS[bmKey].maxGears };
+    const sim = simulateShift(st);
+    const q = quota(st);
+    st.stats.shifts++;
+    st.stats.totalEnergy += sim.energy;
+    st.stats.peakShift = Math.max(st.stats.peakShift, sim.energy);
+    if (sim.jammedCount > 0) st.stats.jamsHit++;
+    st.gold += sim.goldEarned;
+    st.stats.goldEarned += sim.goldEarned;
+    const success = sim.energy >= q;
+    let payout = null;
+    if (success) {
+      payout = pay(st, sim.energy - q);
+      st.gold += payout.total;
+      st.stats.goldEarned += payout.total;
+      st.done++;
+      st.lastShift = { energy: sim.energy, quota: q, success, payout, contract: st.contract, bossMod: sim.bossMod };
+      if (st.contract === D.FINAL_CONTRACT && !st.endless) st.phase = 'won';
+      else { st.contract++; st.phase = 'shop'; genShop(st); }
+    } else {
+      st.lastShift = { energy: sim.energy, quota: q, success, payout, contract: st.contract, bossMod: sim.bossMod };
+      st.canOvertime = st.charms.includes('overtimepermit') && !st.overtimeUsed;
+      st.phase = st.canOvertime ? 'overtime' : 'over';
+    }
+    return { sim, quota: q, success, payout };
+  }
+  function useOvertime(st) {
+    if (st.phase !== 'overtime' || !st.canOvertime) return false;
+    st.overtimeUsed = true; st.canOvertime = false; st.phase = 'build';
+    return true;
+  }
+  function declineOvertime(st) { if (st.phase === 'overtime') st.phase = 'over'; }
+  function enterEndless(st) {
+    if (st.phase !== 'won') return false;
+    st.endless = true; st.contract++; st.phase = 'shop'; genShop(st);
+    return true;
+  }
+  function nextContract(st) { if (st.phase === 'shop') st.phase = 'build'; }
+
+  /* ---------- Shop ---------- */
+  function gearPool(st) {
+    let ids = Object.keys(D.GEARS).filter(id => id !== 'drive');
+    if (st.demo) ids = ids.filter(id => D.DEMO_GEARS.includes(id));
+    return ids;
+  }
+  function charmPool(st) {
+    let ids = Object.keys(D.CHARMS).filter(id => !st.charms.includes(id));
+    if (st.demo) ids = ids.filter(id => D.DEMO_CHARMS.includes(id));
+    return ids;
+  }
+  function gearPrice(st, id) {
+    let c = D.GEARS[id].cost;
+    if (st.charms.includes('unioncard')) c = Math.ceil(c * 0.8);
+    return c;
+  }
+  function rollGearId(st) {
+    const w = D.rarityWeights(st.contract);
+    const r = rand(st);
+    const rar = r < w.common ? 'common' : (r < w.common + w.rare ? 'rare' : 'epic');
+    let pool = gearPool(st).filter(id => D.GEARS[id].rarity === rar);
+    if (!pool.length) pool = gearPool(st);
+    return pick(st, pool);
+  }
+  function genShop(st) {
+    const offers = [];
+    for (let i = 0; i < D.ECON.shopGears; i++) {
+      const id = rollGearId(st);
+      offers.push({ kind: 'gear', id, cost: gearPrice(st, id), sold: false });
+    }
+    const cp = charmPool(st);
+    if (cp.length && st.charms.length < D.ECON.maxCharms) {
+      const id = cp[randInt(st, cp.length)];
+      offers.push({ kind: 'charm', id, cost: D.CHARMS[id].cost, sold: false });
+    }
+    if (st.boardR < 3)
+      offers.push({ kind: 'expand', id: 'expand' + (st.boardR + 1), cost: D.ECON.expandCost[st.boardR + 1], sold: false });
+    st.shop = { offers, rerollCost: st.charms.includes('luckycoin') ? 1 : D.ECON.rerollBase };
+  }
+  function reroll(st) {
+    if (!st.shop || st.gold < st.shop.rerollCost) return false;
+    st.gold -= st.shop.rerollCost;
+    st.stats.rerolls++;
+    const keep = st.shop.offers.filter(o => o.kind === 'expand');
+    const offers = [];
+    for (let i = 0; i < D.ECON.shopGears; i++) {
+      const id = rollGearId(st);
+      offers.push({ kind: 'gear', id, cost: gearPrice(st, id), sold: false });
+    }
+    const cp = charmPool(st);
+    if (cp.length && st.charms.length < D.ECON.maxCharms) {
+      const id = cp[randInt(st, cp.length)];
+      offers.push({ kind: 'charm', id, cost: D.CHARMS[id].cost, sold: false });
+    }
+    st.shop = { offers: offers.concat(keep), rerollCost: st.charms.includes('luckycoin') ? 1 : st.shop.rerollCost + 1 };
+    return true;
+  }
+  function buy(st, idx) {
+    const o = st.shop && st.shop.offers[idx];
+    if (!o || o.sold || st.gold < o.cost) return false;
+    if (o.kind === 'charm' && st.charms.length >= D.ECON.maxCharms) return false;
+    st.gold -= o.cost; o.sold = true;
+    if (o.kind === 'gear') { st.tray.push({ id: o.id, uid: st.uid++ }); st.stats.gearsBought++; }
+    else if (o.kind === 'charm') st.charms.push(o.id);
+    else if (o.kind === 'expand') st.boardR++;
+    return true;
+  }
+
+  /* ---------- Board editing (free during build & shop) ---------- */
+  function findGear(st, uid) {
+    for (const k of Object.keys(st.gears)) if (st.gears[k].uid === uid) return { where: 'board', key: k, g: st.gears[k] };
+    const i = st.tray.findIndex(g => g.uid === uid);
+    if (i >= 0) return { where: 'tray', idx: i, g: st.tray[i] };
+    return null;
+  }
+  function placeGear(st, uid, key) {
+    const f = findGear(st, uid);
+    const [q, r] = parseK(key);
+    if (!f || st.gears[key] || !inBoard(q, r, st.boardR)) return false;
+    if (f.where === 'tray') { st.tray.splice(f.idx, 1); st.gears[key] = f.g; }
+    else { if (f.g.id === 'drive') return false; delete st.gears[f.key]; st.gears[key] = f.g; }
+    return true;
+  }
+  function unplaceGear(st, uid) {
+    const f = findGear(st, uid);
+    if (!f || f.where !== 'board' || f.g.id === 'drive') return false;
+    delete st.gears[f.key]; st.tray.push(f.g);
+    return true;
+  }
+  function sellGear(st, uid) {
+    const f = findGear(st, uid);
+    if (!f || f.g.id === 'drive') return 0;
+    const refund = Math.max(1, Math.floor(D.GEARS[f.g.id].cost * D.ECON.sellRatio));
+    if (f.where === 'board') delete st.gears[f.key]; else st.tray.splice(f.idx, 1);
+    st.gold += refund;
+    return refund;
+  }
+
+  /* ---------- Persistence ---------- */
+  function toJSON(st) { return JSON.stringify(st); }
+  function fromJSON(s) {
+    const st = JSON.parse(s);
+    if (!st || st.v !== 1 || !st.gears || !st.gears['0,0']) return null;
+    return st;
+  }
+
+  return {
+    DIRS, K, parseK, hexDist, inBoard, isEdge, boardCells, neighborKeys,
+    hashStr, mulberry32, rand, randInt, pick,
+    newRun, quota, isBoss, bossMod, ticksFor,
+    computeSpin, simulateShift, runShift, useOvertime, declineOvertime, enterEndless, nextContract,
+    genShop, reroll, buy, gearPrice,
+    placeGear, unplaceGear, sellGear, findGear,
+    pay, toJSON, fromJSON,
+  };
+})();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = Engine;
+
+
+/* ===== audio.js ===== */
+/* MAINSPRING — Web Audio: synthesized SFX + generative music-box soundtrack.
+   Zero audio assets. All sounds are procedural. */
+'use strict';
+
+const AudioSys = (() => {
+  let ctx = null, master = null, sfxBus = null, musBus = null;
+  let vol = { master: 0.8, sfx: 0.8, music: 0.45 };
+  let musicOn = true, musTimer = null, musStep = 0, musIdx = 4, nextNote = 0;
+  let noiseBuf = null;
+
+  function ensure() {
+    if (!ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return false;
+      ctx = new AC();
+      master = ctx.createGain(); master.connect(ctx.destination);
+      sfxBus = ctx.createGain(); sfxBus.connect(master);
+      musBus = ctx.createGain(); musBus.connect(master);
+      applyVol();
+      noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      startMusic();
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+    return true;
+  }
+  function applyVol() {
+    if (!ctx) return;
+    master.gain.value = vol.master;
+    sfxBus.gain.value = vol.sfx;
+    musBus.gain.value = musicOn ? vol.music : 0;
+  }
+  function setVol(k, v) { vol[k] = v; applyVol(); }
+  function setMusic(on) { musicOn = on; applyVol(); }
+
+  /* one enveloped oscillator */
+  function tone(freq, t0, dur, type, gain, dest, freqEnd) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t0);
+    if (freqEnd) o.frequency.exponentialRampToValueAtTime(Math.max(1, freqEnd), t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(dest || sfxBus);
+    o.start(t0); o.stop(t0 + dur + 0.05);
+  }
+  function noise(t0, dur, gain, freq, q, dest) {
+    const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true;
+    const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq || 2000; f.Q.value = q || 1;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    s.connect(f); f.connect(g); g.connect(dest || sfxBus);
+    s.start(t0); s.stop(t0 + dur + 0.05);
+  }
+
+  const recipes = {
+    click: t => tone(660, t, 0.04, 'square', 0.10),
+    hover: t => tone(880, t, 0.02, 'sine', 0.03),
+    place: t => { tone(170, t, 0.10, 'sine', 0.30, sfxBus, 85); noise(t, 0.05, 0.12, 900, 2); },
+    pick:  t => tone(240, t, 0.06, 'sine', 0.16, sfxBus, 330),
+    tick:  (t, i) => { tone(i % 2 ? 950 : 780, t, 0.03, 'sine', 0.10); noise(t, 0.02, 0.05, 4000, 3); },
+    coin:  t => { tone(880, t, 0.07, 'triangle', 0.16); tone(1318, t + 0.06, 0.10, 'triangle', 0.14); },
+    buy:   t => { tone(660, t, 0.05, 'triangle', 0.14); tone(990, t + 0.05, 0.08, 'triangle', 0.14); },
+    sell:  t => { tone(520, t, 0.06, 'triangle', 0.13); tone(390, t + 0.05, 0.08, 'triangle', 0.11); },
+    jam:   t => { tone(110, t, 0.38, 'sawtooth', 0.22, sfxBus, 55); tone(113, t, 0.38, 'sawtooth', 0.16, sfxBus, 57); noise(t, 0.3, 0.14, 300, 1); },
+    denied: t => tone(140, t, 0.09, 'square', 0.14),
+    energy: t => tone(1170, t, 0.05, 'sine', 0.05),
+    win:   t => [523, 659, 784, 1047].forEach((f, i) => tone(f, t + i * 0.09, 0.35, 'triangle', 0.16)),
+    lose:  t => [392, 330, 262, 196].forEach((f, i) => tone(f, t + i * 0.16, 0.30, 'sine', 0.15)),
+    boss:  t => { tone(98, t, 0.5, 'sawtooth', 0.10, sfxBus, 96); tone(196, t + 0.1, 0.4, 'triangle', 0.10); },
+    whoosh: t => noise(t, 0.25, 0.10, 600, 0.8),
+  };
+  function sfx(name, arg) {
+    if (!ensure()) return;
+    const r = recipes[name];
+    if (r) r(ctx.currentTime, arg || 0);
+  }
+
+  /* --- generative music box: seeded pentatonic walk, C major pentatonic --- */
+  const SCALE = [261.6, 293.7, 329.6, 392.0, 440.0, 523.3, 587.3, 659.3, 784.0, 880.0];
+  let musRand = (() => { let a = 20260702; return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; })();
+  function pluck(freq, t0, gain) {
+    const o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'triangle'; o.frequency.value = freq;
+    o2.type = 'sine'; o2.frequency.value = freq * 2; /* music-box partial */
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.1);
+    o.connect(g); o2.connect(g); g.connect(musBus);
+    const g2 = ctx.createGain(); g2.gain.value = 0.35; o2.disconnect(); o2.connect(g2); g2.connect(g);
+    o.start(t0); o.stop(t0 + 1.2); o2.start(t0); o2.stop(t0 + 1.2);
+  }
+  function schedule() {
+    if (!ctx) return;
+    const STEP = 0.30; /* seconds per 8th */
+    while (nextNote < ctx.currentTime + 0.6) {
+      if (nextNote < ctx.currentTime) nextNote = ctx.currentTime + 0.05;
+      const t = nextNote;
+      /* soft tick-tock underneath, every 2nd step */
+      if (musStep % 2 === 0) noise(t, 0.015, 0.018, musStep % 4 === 0 ? 2600 : 2100, 4, musBus);
+      /* low root every 8 steps */
+      if (musStep % 8 === 0) pluck(130.8, t, 0.05);
+      /* melodic walk */
+      if (musRand() < 0.62) {
+        musIdx = Math.max(0, Math.min(SCALE.length - 1, musIdx + [ -2, -1, -1, 0, 1, 1, 2 ][Math.floor(musRand() * 7)]));
+        pluck(SCALE[musIdx], t, 0.075);
+        if (musRand() < 0.14) pluck(SCALE[Math.max(0, musIdx - 3)], t + 0.02, 0.045);
+      }
+      musStep++; nextNote += STEP;
+    }
+  }
+  function startMusic() {
+    if (musTimer) return;
+    nextNote = 0;
+    musTimer = setInterval(schedule, 150);
+  }
+
+  return { ensure, sfx, setVol, setMusic, getVol: () => Object.assign({}, vol), isMusicOn: () => musicOn };
+})();
+
+
+/* ===== ui.js ===== */
+/* MAINSPRING — UI: canvas renderer, DOM screens, input, persistence.
+   Browser-only. Depends on data.js, engine.js, audio.js globals. */
+'use strict';
+
+const UI = (() => {
+  const D = MSDATA, E = Engine;
+  const SQ3 = Math.sqrt(3);
+  let st = null;               /* current run state (engine) */
+  let meta = null;             /* persistent meta */
+  let DEMO = false, ITCH_URL = 'https://itch.io', unlockHashes = []; /* set via init opts */
+  let canvas, ctx2, W = 0, H = 0, DPR = 1;
+  let hoverKey = null, carrying = null; /* carrying = {uid, id} */
+  let mouse = { x: 0, y: 0 };
+  let anim = null;             /* running shift animation */
+  let gearAngles = {};         /* key -> visual angle */
+  let floaters = [], sparks = [];
+  let shake = 0, lastT = 0;
+  let spinCache = null, forecastCache = null, dirty = true;
+  let coachStep = 0;
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+  /* ================= persistence ================= */
+  function loadMeta() {
+    try { meta = JSON.parse(localStorage.getItem('mainspring_meta')) || {}; } catch (e) { meta = {}; }
+    meta.discovered = meta.discovered || ['drive', 'brass', 'copper'];
+    meta.settings = Object.assign({ master: 0.8, sfx: 0.8, music: 0.45, musicOn: true, reduceMotion: false, seenHow: false }, meta.settings || {});
+    meta.daily = meta.daily || {};
+    meta.stats = Object.assign({ runs: 0, wins: 0, bestContract: 0, endlessBest: 0, coach: 0 }, meta.stats || {});
+    meta.unlocked = !!meta.unlocked;
+  }
+  function saveMeta() { try { localStorage.setItem('mainspring_meta', JSON.stringify(meta)); } catch (e) {} }
+  function saveRun() { try { if (st && st.phase !== 'over') localStorage.setItem('mainspring_run', E.toJSON(st)); else localStorage.removeItem('mainspring_run'); } catch (e) {} }
+  function loadRun() { try { return E.fromJSON(localStorage.getItem('mainspring_run')); } catch (e) { return null; } }
+  function discover(id) { if (!meta.discovered.includes(id)) { meta.discovered.push(id); saveMeta(); } }
+  function isDemo() { return DEMO && !meta.unlocked; }
+
+  /* ================= boot / layout ================= */
+  function init(opts) {
+    DEMO = !!(opts && opts.demo); ITCH_URL = (opts && opts.itchUrl) || ITCH_URL;
+    unlockHashes = (opts && opts.unlockHashes) || [];
+    loadMeta();
+    buildDom();
+    canvas = $('board'); ctx2 = canvas.getContext('2d');
+    addEvents();
+    applySettingsToAudio();
+    showScreen('title');
+    refreshTitle();
+    requestAnimationFrame(frame);
+  }
+
+  function buildDom() {
+    $('app').innerHTML = `
+      ${isDemo() ? '<div class="demobadge">DEMO</div>' : ''}
+      <div id="hud">
+        <div class="logo serif">⚙ MAINSPRING</div>
+        <div class="pill">Contract <b id="h-contract">1</b><span class="dim" id="h-of">/8</span></div>
+        <div id="quotabarwrap"><div id="quotabar"></div><div id="quotatxt"></div></div>
+        <div id="bossbanner"></div>
+        <div class="pill">🪙 <b id="h-gold">0</b></div>
+        <div class="pill">Ticks <b id="h-ticks">10</b></div>
+        <button class="ghost iconbtn" id="btn-how" title="How to play (H)">?</button>
+        <button class="ghost iconbtn" id="btn-settings" title="Settings">⚙</button>
+        <button class="ghost iconbtn" id="btn-menu" title="Menu">☰</button>
+      </div>
+      <div id="boardwrap">
+        <canvas id="board"></canvas>
+        <div id="forecast"></div>
+        <div id="jamwarn">⚠ JAMMED TRAIN — meshed gears form a tight loop. Break it up or grease it.</div>
+        <div id="payout"></div>
+        <div id="coach" class="coach" style="display:none"></div>
+      </div>
+      <div id="dock">
+        <div id="shoprow">
+          <div id="shopoffers"></div>
+          <div id="shopside">
+            <button class="ghost" id="btn-reroll">Reroll 🪙2</button>
+            <button class="big" id="btn-next">NEXT SHIFT ▸</button>
+          </div>
+        </div>
+        <div id="trayrow">
+          <div id="charmbar"></div>
+          <div id="tray"></div>
+          <div id="sellzone">SELL</div>
+          <button class="big" id="runbtn">RUN SHIFT ⚙</button>
+        </div>
+      </div>
+      <div id="tooltip"></div>
+      ${screenHtml()}`;
+  }
+
+  function screenHtml() {
+    return `
+    <div class="screen" id="scr-title"><div class="panel">
+      <div class="tag">a clockwork engine-building roguelike</div>
+      <h1>⚙ MAINSPRING</h1>
+      <p class="dim" id="title-sub">The Guild has contracts. You have gears. Meshed gears counter-rotate — close a tight loop and the whole train <span class="red">jams</span>.</p>
+      <div class="row">
+        <button class="big" id="btn-new">NEW RUN</button>
+        <button class="big ghost" id="btn-continue" style="display:none">CONTINUE</button>
+      </div>
+      <div class="row">
+        <button class="ghost" id="btn-daily">📅 DAILY GEARWORK</button>
+        <button class="ghost" id="btn-howto2">HOW TO PLAY</button>
+        <button class="ghost" id="btn-comp">COMPENDIUM</button>
+        <button class="ghost" id="btn-set2">SETTINGS</button>
+      </div>
+      <p class="small dim" id="title-stats"></p>
+      <p class="small dim" id="title-tip"></p>
+    </div></div>
+
+    <div class="screen" id="scr-how"><div class="panel">
+      <h2>How to run a Gearworks</h2>
+      <div class="howgrid">
+        <h3>1 · Build the train</h3>
+        <p>Drag gears from the tray onto the hex board. Power flows from the central <b>Mainspring Drive</b> — a gear only spins if it is meshed (adjacent) to the Drive through other gears.</p>
+        <h3>2 · Mind your loops</h3>
+        <p>Meshed gears must counter-rotate: <span class="gold">clockwise ↻</span> gears turn their neighbors <span class="gold">counter-clockwise ↺</span>. Three gears in a tight triangle can't agree — the whole train <span class="red">JAMS</span> and produces nothing. Straight lines and wide curves are safe; a <b>Greased Bushing</b> can break any loop.</p>
+        <h3>3 · Direction matters</h3>
+        <p>Some gears pay more clockwise, some counter-clockwise. Every second gear in a chain flips direction — position is everything. The forecast above the board always shows exactly what your machine will produce.</p>
+        <h3>4 · Meet the quota</h3>
+        <p>Each contract demands energy ⚡ in a fixed number of ticks. Clear it, get paid 🪙, buy better gears, expand the chassis. Fail, and the Guild shows you the door. Contracts 3 and 6 carry nasty conditions. Contract 8 is the <b>Grand Commission</b>.</p>
+        <p class="dim"><span class="kbd">Drag</span> place · <span class="kbd">Right-click</span> uninstall · <span class="kbd">Drag to red zone</span> sell · <span class="kbd">Space</span> run · <span class="kbd">M</span> mute</p>
+      </div>
+      <div class="row"><button class="big" id="btn-how-ok">TO THE WORKSHOP</button></div>
+    </div></div>
+
+    <div class="screen" id="scr-settings"><div class="panel">
+      <h2>Settings</h2>
+      <div class="setrow"><span>Master volume</span><input type="range" id="set-master" min="0" max="100"></div>
+      <div class="setrow"><span>Sound effects</span><input type="range" id="set-sfx" min="0" max="100"></div>
+      <div class="setrow"><span>Music</span><input type="range" id="set-music" min="0" max="100"></div>
+      <div class="setrow"><span>Music on</span><input type="checkbox" id="set-musicon"></div>
+      <div class="setrow"><span>Reduce motion</span><input type="checkbox" id="set-motion"></div>
+      <div class="setrow" id="unlockrow" style="display:none"><span>Unlock code</span><span><input type="text" id="set-code" placeholder="MS-XXXX-0000"><button class="ghost" id="btn-code">APPLY</button></span></div>
+      <div class="setrow"><span>Reset all progress</span><button class="danger" id="btn-wipe">RESET</button></div>
+      <div class="row"><button id="btn-set-ok">DONE</button></div>
+    </div></div>
+
+    <div class="screen" id="scr-comp"><div class="panel">
+      <h2>Compendium</h2>
+      <p class="dim small" id="comp-count"></p>
+      <div id="compgrid"></div>
+      <div class="row"><button id="btn-comp-ok">CLOSE</button></div>
+    </div></div>
+
+    <div class="screen" id="scr-over"><div class="panel">
+      <div class="tag" id="over-tag">contract failed</div>
+      <h2 id="over-title" class="red">The Guild is not amused.</h2>
+      <p id="over-sub"></p>
+      <div class="statgrid" id="over-stats"></div>
+      <div class="row">
+        <button class="big" id="btn-again">NEW RUN</button>
+        <button class="ghost" id="btn-over-menu">MENU</button>
+        <button class="ghost" id="btn-share" style="display:none">COPY DAILY RESULT</button>
+      </div>
+    </div></div>
+
+    <div class="screen" id="scr-won"><div class="panel">
+      <div class="tag">contract 8 — grand commission</div>
+      <h2 class="gold">The Commission is complete.</h2>
+      <p>The Guild engraves your name on the workshop wall. The machine hums on.</p>
+      <div class="statgrid" id="won-stats"></div>
+      <div class="row">
+        <button class="big" id="btn-endless">CONTINUE — ENDLESS ▸</button>
+        <button class="ghost" id="btn-won-menu">RETIRE TO MENU</button>
+      </div>
+    </div></div>
+
+    <div class="screen" id="scr-demo"><div class="panel">
+      <div class="tag">demo complete</div>
+      <h2 class="gold">The Guild offers a full commission.</h2>
+      <p>You cleared the demo's three contracts. The full game has <b>8 contracts + endless mode</b>, all <b>27 gears and 8 charms</b>, boss conditions, and the <b>Daily Gearwork</b> seeded challenge.</p>
+      <div class="row"><button class="big" id="btn-buy">GET THE FULL GAME</button><button class="ghost" id="btn-demo-menu">MENU</button></div>
+    </div></div>
+
+    <div class="screen" id="scr-overtime"><div class="panel">
+      <h2 class="gold">Overtime Permit</h2>
+      <p>The shift fell short — but the permit lets you re-run it once. Rearrange the machine first.</p>
+      <div class="row"><button class="big" id="btn-ot-yes">WORK OVERTIME</button><button class="ghost danger" id="btn-ot-no">ACCEPT DEFEAT</button></div>
+    </div></div>`;
+  }
+
+  /* ================= screens ================= */
+  function showScreen(name) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+    if (name) { const el = $('scr-' + name); if (el) el.classList.add('on'); }
+  }
+  function refreshTitle() {
+    const run = loadRun();
+    $('btn-continue').style.display = run ? '' : 'none';
+    const s = meta.stats;
+    $('title-stats').textContent = s.runs ? `Runs: ${s.runs} · Commissions won: ${s.wins} · Best contract: ${s.bestContract}${s.endlessBest ? ' · Endless best: ' + s.endlessBest : ''}` : '';
+    const today = dailyKey();
+    $('title-tip').textContent = meta.daily[today] ? `Daily done — cleared contract ${meta.daily[today].contract}, peak ${meta.daily[today].peak}⚡` : '';
+    if (isDemo()) $('btn-daily').disabled = true;
+  }
+  function dailyKey() { const d = new Date(); return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0'); }
+
+  function newRun(mode) {
+    const seed = mode === 'daily' ? 'MS-daily-' + dailyKey() : 'MS-' + Date.now() + '-' + Math.floor(Math.random() * 1e6);
+    st = E.newRun(seed, mode || 'standard', isDemo());
+    meta.stats.runs++; saveMeta(); saveRun();
+    gearAngles = {}; floaters = []; sparks = []; anim = null; dirty = true;
+    showScreen(null);
+    if (!meta.settings.seenHow) { showScreen('how'); meta.settings.seenHow = true; saveMeta(); }
+    coachStep = meta.stats.coach >= 3 ? 99 : 0;
+    syncAll();
+  }
+
+  /* ================= HUD & dock sync ================= */
+  function syncAll() {
+    if (!st) return;
+    $('h-contract').textContent = st.contract;
+    $('h-of').textContent = st.endless || st.contract > D.FINAL_CONTRACT ? ' · endless' : '/' + D.FINAL_CONTRACT;
+    $('h-gold').textContent = st.gold;
+    $('h-ticks').textContent = E.ticksFor(st);
+    const bm = E.bossMod(st);
+    const bb = $('bossbanner');
+    if (bm) { bb.style.display = ''; bb.innerHTML = '☠ ' + esc(D.BOSS_MODS[bm].name) + ' — ' + esc(D.BOSS_MODS[bm].text); }
+    else bb.style.display = 'none';
+    $('runbtn').style.display = st.phase === 'build' ? '' : 'none';
+    $('shoprow').style.display = st.phase === 'shop' ? 'flex' : 'none';
+    if (st.phase === 'shop') syncShop();
+    syncTray(); syncCharms(); syncQuota(); recompute();
+    coach();
+    saveRun();
+  }
+  function syncQuota() {
+    const q = E.quota(st);
+    const e = anim ? Math.floor(anim.energyShown) : 0;
+    $('quotabar').style.width = Math.min(100, 100 * e / q) + '%';
+    $('quotatxt').textContent = e + ' / ' + q + ' ⚡';
+  }
+  function syncTray() {
+    const tray = $('tray');
+    tray.innerHTML = st.tray.length ? '' : '<span class="hint">Bought gears land here — drag them onto the board.</span>';
+    for (const g of st.tray) {
+      const chip = document.createElement('div');
+      chip.className = 'chip'; chip.dataset.uid = g.uid;
+      const cv = document.createElement('canvas');
+      drawGearIcon(cv, g.id, 54);
+      chip.appendChild(cv);
+      chip.addEventListener('mousedown', ev => { if (canEdit()) { startCarry(g.uid, g.id); ev.preventDefault(); } });
+      chip.addEventListener('mouseenter', () => tipGear(chip, g.id));
+      chip.addEventListener('mouseleave', hideTip);
+      tray.appendChild(chip);
+    }
+  }
+  const CHARM_ICONS = { oilcan: '🛢', ledger: '📒', unioncard: '🎫', springwinder: '🔑', overtimepermit: '📜', insurance: '🏦', luckycoin: '🍀', foreman: '📯' };
+  function syncCharms() {
+    const bar = $('charmbar'); bar.innerHTML = '';
+    for (const id of st.charms) {
+      const d = document.createElement('div');
+      d.className = 'charm'; d.textContent = CHARM_ICONS[id] || '★';
+      d.addEventListener('mouseenter', () => tip(d, `<div class="tt-name gold">${esc(D.CHARMS[id].name)}</div><div>${esc(D.CHARMS[id].text)}</div>`));
+      d.addEventListener('mouseleave', hideTip);
+      bar.appendChild(d);
+    }
+  }
+  function syncShop() {
+    const wrap = $('shopoffers'); wrap.innerHTML = '';
+    st.shop.offers.forEach((o, i) => {
+      if (o.kind === 'gear' || o.kind === 'charm') discover(o.id);
+      const div = document.createElement('div');
+      const rar = o.kind === 'gear' ? D.GEARS[o.id].rarity : 'rare';
+      div.className = `offer k-${o.kind} r-${rar}` + (o.sold ? ' sold' : '');
+      let icon = '';
+      if (o.kind === 'gear') icon = `<canvas data-gear="${o.id}"></canvas>`;
+      else if (o.kind === 'charm') icon = `<div style="font-size:34px;line-height:44px">${CHARM_ICONS[o.id] || '★'}</div>`;
+      else icon = `<div style="font-size:34px;line-height:44px">⬡</div>`;
+      const nm = o.kind === 'gear' ? D.GEARS[o.id].name : o.kind === 'charm' ? D.CHARMS[o.id].name : 'Chassis Expansion';
+      div.innerHTML = `${icon}<div class="nm">${esc(nm)}</div><div class="cost">🪙 ${o.cost}</div>`;
+      const cv = div.querySelector('canvas');
+      if (cv) drawGearIcon(cv, o.id, 46);
+      div.addEventListener('click', () => {
+        if (E.buy(st, i)) { AudioSys.sfx('buy'); dirty = true; syncAll(); }
+        else AudioSys.sfx('denied');
+      });
+      div.addEventListener('mouseenter', () => {
+        if (o.kind === 'gear') tipGear(div, o.id);
+        else if (o.kind === 'charm') tip(div, `<div class="tt-name gold">${esc(D.CHARMS[o.id].name)}</div><div>${esc(D.CHARMS[o.id].text)}</div><div class="tt-sub">Charm — passive. Max ${D.ECON.maxCharms}.</div>`);
+        else tip(div, `<div class="tt-name gold">Chassis Expansion</div><div>Grow the board to radius ${st.boardR + 1} (${E.boardCells(st.boardR + 1).length} cells). More room, more trains.</div>`);
+      });
+      div.addEventListener('mouseleave', hideTip);
+      wrap.appendChild(div);
+    });
+    $('btn-reroll').textContent = 'Reroll 🪙' + st.shop.rerollCost;
+  }
+
+  /* ================= tooltip ================= */
+  function tip(el, html) {
+    const t = $('tooltip');
+    t.innerHTML = html; t.style.display = 'block';
+    const r = el.getBoundingClientRect();
+    let x = r.left + r.width / 2 - 130, y = r.top - t.offsetHeight - 10;
+    x = Math.max(8, Math.min(window.innerWidth - t.offsetWidth - 8, x));
+    if (y < 8) y = r.bottom + 10;
+    t.style.left = x + 'px'; t.style.top = y + 'px';
+  }
+  function tipAt(x, y, html) {
+    const t = $('tooltip');
+    t.innerHTML = html; t.style.display = 'block';
+    let tx = x + 18, ty = y - t.offsetHeight - 8;
+    tx = Math.max(8, Math.min(window.innerWidth - t.offsetWidth - 8, tx));
+    if (ty < 8) ty = y + 22;
+    t.style.left = tx + 'px'; t.style.top = ty + 'px';
+  }
+  function tipGear(el, id) { tip(el, gearTipHtml(id)); }
+  function gearTipHtml(id, extra) {
+    const g = D.GEARS[id], rc = D.RARITY[g.rarity];
+    return `<div class="tt-name" style="color:${rc.col}">${esc(g.name)}</div>
+      <div class="tt-rar" style="color:${rc.col}">${rc.name}${g.wild ? ' · loose mesh' : ''}</div>
+      <div style="margin-top:4px">${esc(g.text)}</div>` +
+      (extra || '') +
+      (g.fixed ? '' : `<div class="tt-sub">Sell for 🪙${Math.max(1, Math.floor(g.cost * D.ECON.sellRatio))} · right-click to uninstall</div>`);
+  }
+  function hideTip() { $('tooltip').style.display = 'none'; }
+
+  /* ================= board math ================= */
+  function cellSize() { return Math.min(46, Math.min(W / (SQ3 * (2 * st.boardR + 2.6)), H / (1.5 * (2 * st.boardR) + 3.4))); }
+  function cellXY(k) {
+    const [q, r] = E.parseK(k), S = cellSize();
+    return { x: W / 2 + S * SQ3 * (q + r / 2), y: H / 2 + S * 1.5 * r, S };
+  }
+  function pickCell(mx, my) {
+    if (!st) return null;
+    const S = cellSize();
+    for (const k of E.boardCells(st.boardR)) {
+      const p = cellXY(k);
+      if ((mx - p.x) ** 2 + (my - p.y) ** 2 < (S * 0.86) ** 2) return k;
+    }
+    return null;
+  }
+  function canEdit() { return st && (st.phase === 'build' || st.phase === 'shop') && !anim; }
+
+  /* ================= forecast / spin cache ================= */
+  function recompute() {
+    if (!st) return;
+    spinCache = E.computeSpin(st);
+    const sim = E.simulateShift(st);
+    forecastCache = sim.energy;
+    const q = E.quota(st);
+    const f = $('forecast');
+    const okC = sim.energy >= q;
+    f.innerHTML = `Forecast: <b class="${okC ? 'green' : 'gold'}">${sim.energy}⚡</b> <span class="dim">/ ${q} needed</span>` + (sim.goldEarned ? ` <span class="gold">+${sim.goldEarned}🪙</span>` : '');
+    f.style.display = (st.phase === 'build' || st.phase === 'shop') ? '' : 'none';
+    $('jamwarn').style.display = spinCache.jammed.size ? '' : 'none';
+    dirty = false;
+  }
+
+  /* ================= carry / place ================= */
+  function startCarry(uid, id) { carrying = { uid, id }; AudioSys.sfx('pick'); $('sellzone').classList.add('active'); hideTip(); }
+  function endCarry(mx, my, target) {
+    if (target === 'sell') {
+      const refund = E.sellGear(st, carrying.uid);
+      if (refund) AudioSys.sfx('sell');
+    } else if (target) {
+      if (E.placeGear(st, carrying.uid, target)) AudioSys.sfx('place');
+      else AudioSys.sfx('denied');
+    }
+    carrying = null; $('sellzone').classList.remove('active');
+    dirty = true; syncAll();
+  }
+
+  /* ================= shift animation ================= */
+  function runShift() {
+    if (!canEdit() || st.phase !== 'build') return;
+    const res = E.runShift(st);
+    if (res.err === 'maxGears') {
+      AudioSys.sfx('denied');
+      flashBanner(`☠ Union Inspection: at most ${res.limit} gears. Uninstall some.`);
+      return;
+    }
+    saveRun();
+    AudioSys.sfx('whoosh');
+    const spin = E.computeSpin(st);
+    if (spin.jammed.size) { AudioSys.sfx('jam'); shake = meta.settings.reduceMotion ? 0 : 14; }
+    anim = {
+      res, log: res.sim.log, ti: 0, tickDur: meta.settings.reduceMotion ? 0.22 : 0.55,
+      clock: 0, energyShown: res.sim.startEnergy, energyTarget: res.sim.startEnergy, done: false,
+    };
+    $('runbtn').style.display = 'none';
+    $('forecast').style.display = 'none';
+  }
+  function stepAnim(dt) {
+    if (!anim) return;
+    anim.clock += dt;
+    while (anim.ti < anim.log.length && anim.clock >= anim.tickDur) {
+      anim.clock -= anim.tickDur;
+      const entry = anim.log[anim.ti++];
+      AudioSys.sfx('tick', anim.ti);
+      for (const it of entry.items) {
+        const p = cellXY(it.k);
+        if (it.e) floaters.push({ x: p.x, y: p.y - p.S * 0.7, txt: '+' + it.e, col: '#ffe08a', age: 0 });
+        if (it.g) floaters.push({ x: p.x + 14, y: p.y - p.S * 0.4, txt: '+' + it.g + '🪙', col: '#8fd18a', age: 0 });
+        if (it.e >= 8 && !meta.settings.reduceMotion) spawnSparks(p.x, p.y, Math.min(10, it.e / 3));
+        if (it.g) AudioSys.sfx('coin');
+      }
+      anim.energyTarget = entry.energy; /* log energy is cumulative incl. start bonus */
+    }
+    anim.energyShown += (anim.energyTarget - anim.energyShown) * Math.min(1, dt * 8);
+    syncQuota();
+    if (anim.ti >= anim.log.length && !anim.done && Math.abs(anim.energyShown - anim.energyTarget) < 0.6) {
+      anim.done = true; anim.energyShown = anim.energyTarget;
+      setTimeout(finishShift, 350);
+    }
+  }
+  function finishShift() {
+    const res = anim.res; anim = null;
+    const q = res.quota, e = res.sim.energy;
+    const po = $('payout');
+    meta.stats.bestContract = Math.max(meta.stats.bestContract, st.done);
+    if (st.endless) meta.stats.endlessBest = Math.max(meta.stats.endlessBest, st.done - D.FINAL_CONTRACT);
+    if (st.mode === 'daily') {
+      const k = dailyKey(), rec = meta.daily[k] || { contract: 0, peak: 0 };
+      meta.daily[k] = { contract: Math.max(rec.contract, st.done), peak: Math.max(rec.peak, e) };
+    }
+    saveMeta();
+    if (res.success) {
+      AudioSys.sfx('win');
+      po.className = ''; po.style.display = 'block';
+      po.innerHTML = `<h2 class="gold">CONTRACT CLEARED</h2>
+        <p>${e}⚡ / ${q} needed</p>
+        <p class="small dim">Pay ${res.payout.base}🪙 · Interest +${res.payout.interest}🪙</p>`;
+      setTimeout(() => {
+        po.style.display = 'none';
+        if (st.phase === 'won') showWon();
+        else if (isDemo() && st.done >= D.DEMO_LAST_CONTRACT) showScreen('demo');
+        else { AudioSys.sfx('coin'); syncAll(); }
+      }, 1500);
+    } else {
+      AudioSys.sfx('lose');
+      po.className = 'fail'; po.style.display = 'block';
+      po.innerHTML = `<h2 class="red">SHIFT FELL SHORT</h2><p>${e}⚡ / ${q} needed</p>`;
+      setTimeout(() => {
+        po.style.display = 'none';
+        if (st.phase === 'overtime') showScreen('overtime');
+        else showGameOver();
+      }, 1600);
+    }
+    syncAll();
+  }
+  function flashBanner(msg) {
+    const w = $('jamwarn'); w.textContent = msg; w.style.display = '';
+    setTimeout(() => { dirty = true; recompute(); w.textContent = '⚠ JAMMED TRAIN — meshed gears form a tight loop. Break it up or grease it.'; }, 2600);
+  }
+
+  function showGameOver() {
+    localStorage.removeItem('mainspring_run');
+    const s = st.stats;
+    $('over-sub').innerHTML = `Contract ${st.contract} demanded ${E.quota(st)}⚡ — the machine delivered ${st.lastShift.energy}⚡.`;
+    $('over-stats').innerHTML =
+      `<span>Contracts cleared <b>${st.done}</b></span><span>Peak shift <b>${s.peakShift}⚡</b></span>
+       <span>Total energy <b>${s.totalEnergy}⚡</b></span><span>Gold earned <b>${s.goldEarned}🪙</b></span>
+       <span>Gears bought <b>${s.gearsBought}</b></span><span>Jams caused <b>${s.jamsHit}</b></span>`;
+    $('btn-share').style.display = st.mode === 'daily' ? '' : 'none';
+    showScreen('over');
+  }
+  function showWon() {
+    meta.stats.wins++; saveMeta();
+    const s = st.stats;
+    $('won-stats').innerHTML =
+      `<span>Peak shift <b>${s.peakShift}⚡</b></span><span>Total energy <b>${s.totalEnergy}⚡</b></span>
+       <span>Gold earned <b>${s.goldEarned}🪙</b></span><span>Jams caused <b>${s.jamsHit}</b></span>`;
+    showScreen('won');
+  }
+
+  /* ================= coach marks ================= */
+  function coach() {
+    const c = $('coach');
+    if (!st || coachStep > 2 || st.contract > 1 || anim) { c.style.display = 'none'; return; }
+    const msgs = [
+      '⚙ Drag a gear from the tray onto a cell next to the golden Drive.',
+      '↻↺ Watch the arrows — every meshed gear flips direction. Avoid tight triangles: they JAM.',
+      'When the forecast beats the quota, hit RUN SHIFT.',
+    ];
+    const placed = Object.keys(st.gears).length - 1;
+    let step = placed === 0 ? 0 : (placed === 1 ? 1 : 2);
+    if (step < coachStep) step = coachStep;
+    coachStep = step;
+    c.textContent = msgs[step];
+    c.style.display = 'block';
+    c.style.left = '30px'; c.style.bottom = '18px'; c.style.top = 'auto';
+    if (step === 2 && placed >= 2) { meta.stats.coach = 3; saveMeta(); }
+  }
+
+  /* ================= canvas rendering ================= */
+  function resize() {
+    const r = $('boardwrap').getBoundingClientRect();
+    DPR = window.devicePixelRatio || 1;
+    W = r.width; H = r.height;
+    canvas.width = Math.max(1, W * DPR); canvas.height = Math.max(1, H * DPR);
+    ctx2.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  function frame(t) {
+    const dt = Math.min(0.05, (t - lastT) / 1000 || 0.016); lastT = t;
+    if (st && !document.querySelector('.screen.on')) {
+      if (dirty) recompute();
+      if (anim) stepAnim(dt);
+      draw(dt);
+    }
+    requestAnimationFrame(frame);
+  }
+  function hexPath(x, y, S) {
+    ctx2.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI / 3 * i + Math.PI / 6;
+      const px = x + S * Math.cos(a), py = y + S * Math.sin(a);
+      i ? ctx2.lineTo(px, py) : ctx2.moveTo(px, py);
+    }
+    ctx2.closePath();
+  }
+  function draw(dt) {
+    const rw = $('boardwrap').getBoundingClientRect();
+    if (Math.abs(rw.width - W) > 1 || Math.abs(rw.height - H) > 1) resize();
+    ctx2.clearRect(0, 0, W, H);
+    let ox = 0, oy = 0;
+    if (shake > 0) { shake = Math.max(0, shake - dt * 40); ox = (Math.random() - 0.5) * shake; oy = (Math.random() - 0.5) * shake; }
+    ctx2.save(); ctx2.translate(ox, oy);
+    const S = cellSize();
+    /* cells */
+    for (const k of E.boardCells(st.boardR)) {
+      const p = cellXY(k);
+      hexPath(p.x, p.y, S * 0.96);
+      const hov = k === hoverKey && canEdit();
+      const validDrop = carrying && !st.gears[k];
+      ctx2.fillStyle = hov ? (validDrop ? 'rgba(233,195,74,0.14)' : 'rgba(233,195,74,0.07)') : 'rgba(255,255,255,0.025)';
+      ctx2.fill();
+      ctx2.strokeStyle = hov ? '#e9c34a' : 'rgba(160,135,80,0.28)';
+      ctx2.lineWidth = hov ? 1.6 : 1;
+      ctx2.stroke();
+    }
+    /* advance visual angles */
+    const speed = anim ? 2.4 : 0.5;
+    for (const k of Object.keys(st.gears)) {
+      const dir = spinCache ? (spinCache.dir[k] || 0) : 0;
+      const spins = spinCache && spinCache.spinning.has(k);
+      if (gearAngles[k] === undefined) gearAngles[k] = 0;
+      if (spins && !meta.settings.reduceMotion) gearAngles[k] += (dir === 0 ? 0.6 : dir) * speed * dt;
+    }
+    /* gears */
+    for (const k of Object.keys(st.gears).sort()) {
+      const p = cellXY(k);
+      drawGear(ctx2, p.x, p.y, S * 0.88, st.gears[k].id, gearAngles[k] || 0, gearState(k));
+    }
+    /* floaters */
+    ctx2.textAlign = 'center'; ctx2.font = 'bold 15px Georgia, serif';
+    floaters = floaters.filter(f => (f.age += dt) < 1.1);
+    for (const f of floaters) {
+      ctx2.globalAlpha = Math.max(0, 1 - f.age / 1.1);
+      ctx2.fillStyle = f.col;
+      ctx2.fillText(f.txt, f.x, f.y - f.age * 34);
+    }
+    ctx2.globalAlpha = 1;
+    /* sparks */
+    sparks = sparks.filter(sp => (sp.age += dt) < 0.6);
+    for (const sp of sparks) {
+      sp.x += sp.vx * dt; sp.y += sp.vy * dt; sp.vy += 220 * dt;
+      ctx2.globalAlpha = 1 - sp.age / 0.6;
+      ctx2.fillStyle = '#ffd166';
+      ctx2.fillRect(sp.x, sp.y, 2.4, 2.4);
+    }
+    ctx2.globalAlpha = 1;
+    /* carried gear ghost */
+    if (carrying) drawGear(ctx2, mouse.x, mouse.y, S * 0.8, carrying.id, 0, { ghost: true });
+    ctx2.restore();
+  }
+  function gearState(k) {
+    if (!spinCache) return {};
+    return {
+      jammed: spinCache.jammed.has(k),
+      idle: !spinCache.connected.has(k),
+      dir: spinCache.dir[k] || 0,
+      spinning: spinCache.spinning.has(k),
+      drive: st.gears[k].id === 'drive',
+    };
+  }
+  function spawnSparks(x, y, n) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, v = 40 + Math.random() * 90;
+      sparks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60, age: 0 });
+    }
+  }
+
+  /* metal palettes per rarity */
+  const METALS = {
+    common: ['#d8b45a', '#8a6d24', '#5c4715'],
+    rare: ['#b9cdd8', '#6d8b9b', '#3d5560'],
+    epic: ['#ffd08a', '#c98a2e', '#7a4d12'],
+  };
+  function idHash(id) { let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0; return Math.abs(h); }
+
+  function drawGear(g, x, y, R, id, angle, stt) {
+    stt = stt || {};
+    const def = D.GEARS[id];
+    const pal = METALS[def.rarity] || METALS.common;
+    const teeth = 10 + (idHash(id) % 3) * 2;
+    const rOut = R * 0.92, rBody = R * 0.74, rHub = R * 0.26;
+    g.save();
+    g.translate(x, y);
+    if (stt.jammed) g.translate((Math.random() - 0.5) * 1.6, (Math.random() - 0.5) * 1.6);
+    if (stt.ghost) g.globalAlpha = 0.55;
+    if (stt.idle) g.globalAlpha = 0.45;
+    g.rotate(angle);
+    /* teeth */
+    g.beginPath();
+    for (let i = 0; i < teeth; i++) {
+      const a0 = (i / teeth) * Math.PI * 2, aw = Math.PI / teeth;
+      const t1 = a0 - aw * 0.42, t2 = a0 - aw * 0.18, t3 = a0 + aw * 0.18, t4 = a0 + aw * 0.42;
+      g.lineTo(Math.cos(t1) * rBody, Math.sin(t1) * rBody);
+      g.lineTo(Math.cos(t2) * rOut, Math.sin(t2) * rOut);
+      g.lineTo(Math.cos(t3) * rOut, Math.sin(t3) * rOut);
+      g.lineTo(Math.cos(t4) * rBody, Math.sin(t4) * rBody);
+    }
+    g.closePath();
+    const grad = g.createRadialGradient(-R * 0.3, -R * 0.3, R * 0.1, 0, 0, R);
+    grad.addColorStop(0, pal[0]); grad.addColorStop(0.7, pal[1]); grad.addColorStop(1, pal[2]);
+    g.fillStyle = grad; g.fill();
+    g.strokeStyle = 'rgba(0,0,0,0.45)'; g.lineWidth = 1; g.stroke();
+    /* body ring */
+    g.beginPath(); g.arc(0, 0, rBody * 0.98, 0, Math.PI * 2);
+    g.strokeStyle = 'rgba(255,255,255,0.14)'; g.lineWidth = 1.2; g.stroke();
+    /* spokes */
+    const spokes = 3 + (idHash(id) % 3);
+    g.strokeStyle = 'rgba(40,28,10,0.55)'; g.lineWidth = R * 0.1;
+    for (let i = 0; i < spokes; i++) {
+      const a = (i / spokes) * Math.PI * 2;
+      g.beginPath(); g.moveTo(Math.cos(a) * rHub, Math.sin(a) * rHub);
+      g.lineTo(Math.cos(a) * rBody * 0.82, Math.sin(a) * rBody * 0.82); g.stroke();
+    }
+    /* hub */
+    g.beginPath(); g.arc(0, 0, rHub, 0, Math.PI * 2);
+    g.fillStyle = stt.drive ? '#e9c34a' : pal[1]; g.fill();
+    g.strokeStyle = 'rgba(0,0,0,0.5)'; g.stroke();
+    g.rotate(-angle);
+    /* wild = greased sheen */
+    if (def.wild) { g.beginPath(); g.arc(0, 0, rBody * 0.6, 0, Math.PI * 2); g.strokeStyle = 'rgba(180,240,255,0.5)'; g.setLineDash([4, 5]); g.lineWidth = 2; g.stroke(); g.setLineDash([]); }
+    /* monogram */
+    g.fillStyle = stt.drive ? '#1d1710' : 'rgba(255,244,214,0.92)';
+    g.font = `bold ${Math.round(R * 0.34)}px Georgia, serif`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(stt.drive ? '⌂' : def.name[0], 0, 1);
+    /* status ring / direction arrow */
+    if (!stt.ghost) {
+      if (stt.jammed) {
+        g.strokeStyle = '#ff5a40'; g.lineWidth = 3; g.beginPath();
+        g.arc(0, 0, rOut + 2.5, 0, Math.PI * 2); g.stroke();
+        g.font = `bold ${Math.round(R * 0.6)}px sans-serif`; g.fillStyle = '#ff5a40';
+        g.fillText('✕', 0, 1);
+      } else if (stt.spinning) {
+        drawDirArrow(g, rOut + 4, stt.dir);
+      } else if (stt.idle) {
+        g.font = `${Math.round(R * 0.42)}px sans-serif`; g.fillStyle = 'rgba(200,190,160,0.8)';
+        g.fillText('⏾', rOut * 0.62, -rOut * 0.62);
+      }
+    }
+    g.restore();
+  }
+  function drawDirArrow(g, r, dir) {
+    if (dir === 0) { /* free spinner: dashed circle */
+      g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2);
+      g.strokeStyle = 'rgba(150,220,255,0.6)'; g.lineWidth = 1.6; g.setLineDash([3, 6]); g.stroke(); g.setLineDash([]);
+      return;
+    }
+    const col = dir === 1 ? 'rgba(255,214,102,0.95)' : 'rgba(122,199,255,0.95)';
+    const a0 = -Math.PI / 2, a1 = a0 + (dir === 1 ? 1 : -1) * Math.PI * 0.5;
+    g.beginPath(); g.arc(0, 0, r, Math.min(a0, a1), Math.max(a0, a1));
+    g.strokeStyle = col; g.lineWidth = 2.2; g.stroke();
+    const ax = Math.cos(a1) * r, ay = Math.sin(a1) * r;
+    const tang = a1 + (dir === 1 ? Math.PI / 2 : -Math.PI / 2);
+    g.beginPath();
+    g.moveTo(ax + Math.cos(tang) * 7, ay + Math.sin(tang) * 7);
+    g.lineTo(ax + Math.cos(tang + 2.6) * 6, ay + Math.sin(tang + 2.6) * 6);
+    g.lineTo(ax + Math.cos(tang - 2.6) * 6, ay + Math.sin(tang - 2.6) * 6);
+    g.closePath(); g.fillStyle = col; g.fill();
+  }
+  function drawGearIcon(cv, id, size) {
+    cv.width = size; cv.height = size;
+    const g = cv.getContext('2d');
+    drawGear(g, size / 2, size / 2, size * 0.46, id, 0.3, {});
+  }
+
+  /* ================= events ================= */
+  function addEvents() {
+    window.addEventListener('resize', resize);
+    canvas.addEventListener('mousemove', ev => {
+      const r = canvas.getBoundingClientRect();
+      mouse.x = ev.clientX - r.left; mouse.y = ev.clientY - r.top;
+      const k = pickCell(mouse.x, mouse.y);
+      if (k !== hoverKey) hoverKey = k;
+      if (!carrying && k && st && st.gears[k]) {
+        const stt = gearState(k);
+        const extra = stt.jammed ? '<div class="tt-sub red">JAMMED — part of an odd loop.</div>' : (stt.idle ? '<div class="tt-sub">Idle — not connected to the Drive.</div>' : '');
+        tipAt(ev.clientX, ev.clientY, gearTipHtml(st.gears[k].id, extra));
+      } else if (!carrying) hideTip();
+    });
+    canvas.addEventListener('mouseleave', () => { hoverKey = null; hideTip(); });
+    canvas.addEventListener('mousedown', ev => {
+      if (ev.button !== 0 || !canEdit()) return;
+      const k = pickCell(mouse.x, mouse.y);
+      if (k && st.gears[k] && st.gears[k].id !== 'drive') {
+        const gg = st.gears[k];
+        E.unplaceGear(st, gg.uid); /* to tray, then carry */
+        startCarry(gg.uid, gg.id);
+        dirty = true; syncAll();
+      }
+    });
+    window.addEventListener('mouseup', ev => {
+      if (!carrying) return;
+      const r = canvas.getBoundingClientRect();
+      const inCanvas = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
+      const sz = $('sellzone').getBoundingClientRect();
+      const inSell = ev.clientX >= sz.left && ev.clientX <= sz.right && ev.clientY >= sz.top && ev.clientY <= sz.bottom;
+      endCarry(mouse.x, mouse.y, inSell ? 'sell' : (inCanvas ? pickCell(ev.clientX - r.left, ev.clientY - r.top) : null));
+    });
+    canvas.addEventListener('contextmenu', ev => {
+      ev.preventDefault();
+      if (!canEdit()) return;
+      const k = pickCell(mouse.x, mouse.y);
+      if (k && st.gears[k] && st.gears[k].id !== 'drive') {
+        E.unplaceGear(st, st.gears[k].uid);
+        AudioSys.sfx('pick'); dirty = true; syncAll();
+      }
+    });
+    window.addEventListener('mousemove', ev => {
+      if (!carrying) return;
+      const r = canvas.getBoundingClientRect();
+      mouse.x = ev.clientX - r.left; mouse.y = ev.clientY - r.top;
+      hoverKey = pickCell(mouse.x, mouse.y);
+      const sz = $('sellzone');
+      if (sz.classList.contains('active')) {
+        const b = sz.getBoundingClientRect();
+        const over = ev.clientX >= b.left && ev.clientX <= b.right && ev.clientY >= b.top && ev.clientY <= b.bottom;
+        const f = D.GEARS[carrying.id];
+        sz.textContent = over ? `SELL +${Math.max(1, Math.floor(f.cost * D.ECON.sellRatio))}🪙` : 'SELL';
+      }
+    });
+
+    $('runbtn').addEventListener('click', () => { AudioSys.ensure(); runShift(); });
+    $('btn-next').addEventListener('click', () => { AudioSys.sfx('click'); E.nextContract(st); dirty = true; syncAll(); });
+    $('btn-reroll').addEventListener('click', () => { if (E.reroll(st)) { AudioSys.sfx('click'); syncAll(); } else AudioSys.sfx('denied'); });
+
+    $('btn-new').addEventListener('click', () => { AudioSys.ensure(); AudioSys.sfx('click'); newRun('standard'); });
+    $('btn-continue').addEventListener('click', () => {
+      AudioSys.ensure();
+      const run = loadRun();
+      if (run) {
+        st = run; gearAngles = {}; anim = null; dirty = true; coachStep = 99;
+        showScreen(st.phase === 'overtime' ? 'overtime' : null);
+        syncAll();
+      }
+    });
+    $('btn-daily').addEventListener('click', () => { AudioSys.ensure(); AudioSys.sfx('click'); newRun('daily'); });
+    $('btn-howto2').addEventListener('click', () => showScreen('how'));
+    $('btn-how').addEventListener('click', () => showScreen('how'));
+    $('btn-how-ok').addEventListener('click', () => { AudioSys.sfx('click'); showScreen(st ? null : 'title'); if (st) syncAll(); });
+    $('btn-comp').addEventListener('click', () => { fillCompendium(); showScreen('comp'); });
+    $('btn-comp-ok').addEventListener('click', () => showScreen('title'));
+    $('btn-settings').addEventListener('click', openSettings);
+    $('btn-set2').addEventListener('click', openSettings);
+    $('btn-set-ok').addEventListener('click', () => { AudioSys.sfx('click'); showScreen(st && st.phase !== 'over' ? null : 'title'); if (st) syncAll(); });
+    $('btn-menu').addEventListener('click', () => { showScreen('title'); refreshTitle(); });
+    $('btn-again').addEventListener('click', () => newRun(st.mode === 'daily' ? 'daily' : 'standard'));
+    $('btn-over-menu').addEventListener('click', () => { showScreen('title'); refreshTitle(); });
+    $('btn-endless').addEventListener('click', () => { AudioSys.sfx('coin'); E.enterEndless(st); showScreen(null); syncAll(); });
+    $('btn-won-menu').addEventListener('click', () => { localStorage.removeItem('mainspring_run'); showScreen('title'); refreshTitle(); });
+    $('btn-ot-yes').addEventListener('click', () => { AudioSys.sfx('click'); E.useOvertime(st); showScreen(null); syncAll(); });
+    $('btn-ot-no').addEventListener('click', () => { E.declineOvertime(st); showGameOver(); });
+    $('btn-buy').addEventListener('click', () => { window.open(ITCH_URL, '_blank'); });
+    $('btn-demo-menu').addEventListener('click', () => { localStorage.removeItem('mainspring_run'); showScreen('title'); refreshTitle(); });
+    $('btn-share').addEventListener('click', () => {
+      const k = dailyKey(), rec = meta.daily[k] || { contract: 0, peak: 0 };
+      const txt = `⚙ MAINSPRING Daily ${k} — cleared contract ${rec.contract}, peak shift ${rec.peak}⚡  Play: ${ITCH_URL}`;
+      if (navigator.clipboard) navigator.clipboard.writeText(txt);
+      $('btn-share').textContent = 'COPIED!';
+      setTimeout(() => { $('btn-share').textContent = 'COPY DAILY RESULT'; }, 1400);
+    });
+    $('btn-wipe').addEventListener('click', () => {
+      if (confirm('Erase ALL progress, stats and settings?')) {
+        localStorage.removeItem('mainspring_meta'); localStorage.removeItem('mainspring_run');
+        location.reload();
+      }
+    });
+    $('btn-code').addEventListener('click', tryUnlock);
+
+    window.addEventListener('keydown', ev => {
+      if (ev.key === ' ' && st && !document.querySelector('.screen.on')) {
+        ev.preventDefault();
+        if (st.phase === 'build') runShift();
+        else if (st.phase === 'shop') { E.nextContract(st); syncAll(); }
+      }
+      if (ev.key === 'Escape') {
+        const on = document.querySelector('.screen.on');
+        if (on && st && ['scr-how', 'scr-settings', 'scr-comp'].includes(on.id)) { showScreen(null); syncAll(); }
+      }
+      if (ev.key === 'm' || ev.key === 'M') { meta.settings.musicOn = !meta.settings.musicOn; AudioSys.setMusic(meta.settings.musicOn); saveMeta(); }
+      if (ev.key === 'h' || ev.key === 'H') showScreen('how');
+    });
+  }
+
+  /* ================= settings / compendium / unlock ================= */
+  function applySettingsToAudio() {
+    AudioSys.setVol('master', meta.settings.master);
+    AudioSys.setVol('sfx', meta.settings.sfx);
+    AudioSys.setVol('music', meta.settings.music);
+    AudioSys.setMusic(meta.settings.musicOn);
+  }
+  function openSettings() {
+    $('set-master').value = meta.settings.master * 100;
+    $('set-sfx').value = meta.settings.sfx * 100;
+    $('set-music').value = meta.settings.music * 100;
+    $('set-musicon').checked = meta.settings.musicOn;
+    $('set-motion').checked = meta.settings.reduceMotion;
+    $('unlockrow').style.display = isDemo() ? '' : 'none';
+    showScreen('settings');
+    const bind = (id, key, isCheck) => {
+      $(id).oninput = () => {
+        meta.settings[key] = isCheck ? $(id).checked : $(id).value / 100;
+        applySettingsToAudio(); saveMeta();
+      };
+    };
+    bind('set-master', 'master'); bind('set-sfx', 'sfx'); bind('set-music', 'music');
+    bind('set-musicon', 'musicOn', true); bind('set-motion', 'reduceMotion', true);
+  }
+  /* djb2 — matches codes generated by build.py (see LAUNCH_KIT.md) */
+  function djb2(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h * 33) + s.charCodeAt(i)) >>> 0; return h; }
+  function tryUnlock() {
+    const code = ($('set-code').value || '').trim().toUpperCase();
+    if (unlockHashes.includes(djb2(code)) && code.length > 5) {
+      meta.unlocked = true; saveMeta();
+      alert('Unlocked! The full Gearworks is yours. The page will reload.');
+      location.reload();
+    } else { AudioSys.sfx('denied'); $('set-code').value = ''; $('set-code').placeholder = 'Invalid code'; }
+  }
+  function fillCompendium() {
+    const grid = $('compgrid'); grid.innerHTML = '';
+    const all = Object.keys(D.GEARS);
+    let found = 0;
+    for (const id of all) {
+      const has = meta.discovered.includes(id);
+      if (has) found++;
+      const cell = document.createElement('div');
+      cell.className = 'compcell' + (has ? '' : ' locked');
+      const cv = document.createElement('canvas');
+      drawGearIcon(cv, id, 44);
+      cell.appendChild(cv);
+      const nm = document.createElement('div');
+      nm.textContent = has ? D.GEARS[id].name : '???';
+      cell.appendChild(nm);
+      if (has) {
+        cell.addEventListener('mouseenter', () => tipGear(cell, id));
+        cell.addEventListener('mouseleave', hideTip);
+      }
+      grid.appendChild(cell);
+    }
+    $('comp-count').textContent = `Discovered ${found} / ${all.length} gears` + (isDemo() ? ' (demo shows a limited set)' : '');
+  }
+
+  return { init };
+})();
+
+
+/* ===== main.js ===== */
+/* MAINSPRING — boot */
+'use strict';
+
+/* BUILD FLAGS — build.py rewrites these lines for the demo build. */
+const MS_DEMO = true;
+const MS_ITCH_URL = 'https://kelevera.itch.io/mainspring';
+/* Unlock codes (djb2 hashes) — sell codes via Stripe Payment Links or itch rewards.
+   Codes and hash generator are documented in LAUNCH_KIT.md. */
+const MS_UNLOCK_HASHES = [];
+
+window.addEventListener('load', () => {
+  UI.init({ demo: MS_DEMO, itchUrl: MS_ITCH_URL, unlockHashes: MS_UNLOCK_HASHES });
+});
+
+</script>
+</body>
+</html>
